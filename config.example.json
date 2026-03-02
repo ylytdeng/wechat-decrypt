@@ -2,5 +2,6 @@
     "db_dir": "D:\\xwechat_files\\your_wxid\\db_storage",
     "keys_file": "all_keys.json",
     "decrypted_dir": "decrypted",
-    "wechat_process": "Weixin.exe"
+    "wechat_process": "Weixin.exe",
+    "_comment_macos": "macOS example: db_dir=/Users/you/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/your_wxid/db_storage, wechat_process=WeChat"
 }
