@@ -13,6 +13,8 @@ _DEFAULT = {
     "keys_file": "all_keys.json",
     "decrypted_dir": "decrypted",
     "wechat_process": "Weixin.exe",
+    "image_key": "",
+    "decrypted_images_dir": "decrypted_images",
 }
 
 
@@ -32,5 +34,15 @@ def load_config():
     for key in ("keys_file", "decrypted_dir"):
         if key in cfg and not os.path.isabs(cfg[key]):
             cfg[key] = os.path.join(base, cfg[key])
+
+    # Image decryption defaults
+    cfg.setdefault("image_key", "")
+    cfg.setdefault("decrypted_images_dir", "decrypted_images")
+    if "decrypted_images_dir" in cfg and not os.path.isabs(cfg["decrypted_images_dir"]):
+        cfg["decrypted_images_dir"] = os.path.join(base, cfg["decrypted_images_dir"])
+    # Auto-derive image cache dir from db_dir
+    if "db_dir" in cfg:
+        parent = os.path.dirname(cfg["db_dir"])
+        cfg["image_dir"] = os.path.join(parent, "msg")
 
     return cfg

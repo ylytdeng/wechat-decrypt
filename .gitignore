@@ -8,6 +8,13 @@ decrypted/
 *.db-wal
 *.db.tmp_monitor
 
+# Decrypted images
+decrypted_images/
+
+# Compiled binaries
+find_image_key
+decrypt_images
+
 # Hook outputs
 hook_output.txt
 hook_start_output.txt

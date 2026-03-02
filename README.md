@@ -79,7 +79,41 @@ sudo python3 decrypt_db.py      # macOS (无 Full Disk Access 时需要 sudo)
 
 解密后的数据库保存在 `decrypted/` 目录，可以直接用 SQLite 工具打开。
 
-### 4. 实时消息监听
+### 4. 解密图片缓存 (V2 格式)
+
+微信 4.0 的图片缓存使用 V2 加密格式 (AES-128-ECB + XOR)。图片密钥是**瞬时的**——仅在微信正在显示图片时才存在于内存中。
+
+#### 编译图片密钥扫描器 (macOS)
+
+```bash
+cc -O3 -o find_image_key find_image_key.c -framework Security
+```
+
+#### 提取图片密钥
+
+1. 在微信中打开朋友圈，**点击查看几张图片**
+2. **立刻**运行：
+
+```bash
+sudo ./find_image_key
+```
+
+密钥会自动保存到 `config.json` 的 `image_key` 字段。
+
+> **注意**: 密钥仅在查看图片后的几秒内存在于内存中，需要多试几次。
+
+#### 编译并运行图片解密器
+
+```bash
+cc -O3 -o decrypt_images decrypt_images.c -framework Security
+sudo ./decrypt_images
+```
+
+解密后的图片保存在 `decrypted_images/` 目录。
+
+> **已知限制**: 同一设备上可能存在多个 V2 密钥（对应不同来源的图片缓存），单次扫描只能获取当前活跃的密钥。
+
+### 5. 实时消息监听
 
 #### Web UI (推荐)
 
@@ -103,7 +137,7 @@ python monitor.py
 
 每 3 秒轮询一次，在终端显示新消息。
 
-### 5. MCP Server (Claude AI 集成)
+### 6. MCP Server (Claude AI 集成)
 
 将微信数据查询能力接入 [Claude Code](https://claude.ai/claude-code)，让 AI 直接读取你的微信消息。
 
@@ -162,6 +196,8 @@ claude mcp add wechat -- sudo python3 /path/to/wechat-decrypt/mcp_server.py
 | `monitor_web.py` | 实时消息监听 (Web UI + SSE) |
 | `monitor.py` | 实时消息监听 (命令行) |
 | `latency_test.py` | 延迟测量诊断工具 |
+| `find_image_key.c` | V2 图片密钥内存扫描器 (macOS, C + CommonCrypto) |
+| `decrypt_images.c` | V2 图片批量解密器 (macOS, C + CommonCrypto) |
 
 ## 技术细节
 
@@ -180,6 +216,18 @@ claude mcp add wechat -- sudo python3 /path/to/wechat-decrypt/mcp_server.py
 - `contact/contact.db` - 联系人
 - `media_*/media_*.db` - 媒体文件索引
 - 其他: head_image, favorite, sns, emoticon 等
+
+### V2 图片加密格式
+
+微信 4.0 图片缓存使用 V2 格式：
+
+```
+[15B header] [AES-128-ECB 密文] [XOR 加密尾部]
+Header: \x07\x08V2\x08\x07 (6B) + aes_size (4B) + xor_size (4B) + 1B
+AES 区域: aes_size 字节明文 → ceil(aes_size/16)*16 字节密文 (ECB, PKCS7)
+XOR 尾部: 单字节 XOR (macOS: 0x80, Windows: 0xDC)
+密钥: AES-128, 16 字节 (每账号不同，仅查看图片时短暂存在于进程内存)
+```
 
 ## macOS 说明
 
