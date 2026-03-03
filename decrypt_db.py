@@ -125,8 +125,10 @@ def main():
     normalized_keys = {
         normalize_rel_path(path): value for path, value in keys.items()
     }
+    if len(normalized_keys) != len(keys):
+        print(f"[WARN] 密钥路径规范化后发生冲突: {len(keys) - len(normalized_keys)} 条被覆盖")
 
-    print(f"\n加载 {len(keys)} 个数据库密钥")
+    print(f"\n加载 {len(normalized_keys)} 个数据库密钥")
     print(f"输出目录: {OUT_DIR}")
     os.makedirs(OUT_DIR, exist_ok=True)
 

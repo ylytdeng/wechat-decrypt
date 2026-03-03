@@ -83,6 +83,8 @@ sudo python3 decrypt_db.py      # macOS (无 Full Disk Access 时需要 sudo)
 
 微信 4.0 的图片缓存使用 V2 加密格式 (AES-128-ECB + XOR)。图片密钥是**瞬时的**——仅在微信正在显示图片时才存在于内存中。同一设备上通常存在多个密钥（对应不同来源的图片），扫描器支持**持续扫描 + 多密钥采集**。
 
+> 当前图片密钥扫描与批量解密工具为 **macOS 版本**（`find_image_key.c` / `decrypt_images.c`）。Windows 端暂未提供等价的 V2 图片扫描实现。
+
 #### 编译 (macOS)
 
 ```bash

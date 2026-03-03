@@ -38,7 +38,7 @@ def load_config():
     # Image decryption defaults
     cfg.setdefault("image_key", "")
     cfg.setdefault("decrypted_images_dir", "decrypted_images")
-    if "decrypted_images_dir" in cfg and not os.path.isabs(cfg["decrypted_images_dir"]):
+    if not os.path.isabs(cfg["decrypted_images_dir"]):
         cfg["decrypted_images_dir"] = os.path.join(base, cfg["decrypted_images_dir"])
     # Auto-derive image cache dir from db_dir
     if "db_dir" in cfg:

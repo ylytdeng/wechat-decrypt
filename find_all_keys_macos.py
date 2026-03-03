@@ -140,6 +140,8 @@ def read_memory(task, address, size):
     if data_ptr.value == 0 or data_cnt.value == 0:
         return None
 
+    # string_at copies bytes into Python-managed memory, so deallocating
+    # the Mach VM buffer immediately after this call is safe.
     buf = ctypes.string_at(data_ptr.value, data_cnt.value)
     # Deallocate
     libc.mach_vm_deallocate(
@@ -152,12 +154,25 @@ def read_memory(task, address, size):
 def find_wechat_pid():
     """Find WeChat main process PID"""
     import subprocess
-    out = subprocess.check_output(
-        ["ps", "aux"], text=True
-    )
-    for line in out.split('\n'):
+    try:
+        proc = subprocess.run(["ps", "aux"], capture_output=True, text=True, check=False)
+    except OSError:
+        return None
+    if proc.returncode != 0 or not proc.stdout:
+        return None
+
+    candidates = []
+    for line in proc.stdout.splitlines():
         if '/WeChat.app/Contents/MacOS/WeChat' in line and 'WeChatAppEx' not in line and 'wxplayer' not in line and 'wxutility' not in line:
-            return int(line.split()[1])
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            try:
+                candidates.append(int(parts[1]))
+            except ValueError:
+                continue
+    if candidates:
+        return max(candidates)
     return None
 
 # ============ Main ============
@@ -180,6 +195,7 @@ if __name__ == '__main__':
     regions = get_regions(task)
     total_mb = sum(s for _, s in regions) / (1024*1024)
     print(f"Found {len(regions)} R/W regions, {total_mb:.1f}MB total")
+    progress_step = max(1, len(regions) // 10) if regions else 1
     
     # Scan for x'<64hex_key><32hex_salt>' pattern
     pattern = b"x'"
@@ -229,9 +245,11 @@ if __name__ == '__main__':
             offset += step
         
         pct = (i+1) / len(regions) * 100
-        if (i+1) % 100 == 0:
+        if ((i+1) % progress_step == 0) or (i + 1 == len(regions)):
             print(f"  [{pct:.1f}%] {len(found_keys)} keys found, {scanned/(1024*1024):.0f}MB scanned", flush=True)
-    
+
+    libc.mach_port_deallocate(MACH_TASK_SELF, task)
+
     elapsed = time.time() - t0
     print(f"\nScan complete: {elapsed:.1f}s, {scanned/(1024*1024):.0f}MB scanned, {len(found_keys)} unique keys")
     

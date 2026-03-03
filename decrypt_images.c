@@ -60,7 +60,7 @@ static void bytes2hex(const unsigned char *d, int n, char *out) {
     out[n*2] = '\0';
 }
 
-/* Minimal JSON string extractor */
+/* Minimal JSON string extractor (for simple unescaped string values only). */
 static int json_get_string(const char *json, const char *key,
                            char *value, int maxlen) {
     char pattern[256];
@@ -171,6 +171,21 @@ static void mkdirs(const char *path) {
     mkdir(tmp, 0755);
 }
 
+static int has_parent_segment(const char *path) {
+    if (!path || !path[0]) return 1;
+    if (path[0] == '/' || path[0] == '\\') return 1;
+
+    const char *p = path;
+    while (*p) {
+        while (*p == '/' || *p == '\\') p++;
+        if (!*p) break;
+        const char *seg = p;
+        while (*p && *p != '/' && *p != '\\') p++;
+        if ((p - seg) == 2 && seg[0] == '.' && seg[1] == '.') return 1;
+    }
+    return 0;
+}
+
 /* Detect image type from magic bytes */
 static const char *detect_ext(const unsigned char *data, size_t len) {
     if (len < 4) return ".bin";
@@ -192,6 +207,7 @@ static unsigned char detect_xor_key(const unsigned char *xor_data, size_t xor_si
     if (xor_size == 0) return 0;
     unsigned char candidates[] = {0x80, 0xDC, 0x00};
     for (int i = 0; i < (int)(sizeof(candidates)/sizeof(candidates[0])); i++) {
+        /* We want a candidate that doesn't produce a leading NUL byte after XOR. */
         unsigned char test = xor_data[0] ^ candidates[i];
         if (test != 0x00 || candidates[i] == 0x00)
             return candidates[i];
@@ -231,14 +247,23 @@ static int decrypt_v2_file(const char *input_path, const char *output_dir,
     unsigned char *aes_ct = malloc(aes_ct_size);
     if (!aes_ct) { fclose(fin); return -1; }
     size_t rd = fread(aes_ct, 1, aes_ct_size, fin);
-    if (rd < aes_ct_size) memset(aes_ct + rd, 0, aes_ct_size - rd);
+    if (rd != aes_ct_size) {
+        free(aes_ct);
+        fclose(fin);
+        return -8;
+    }
 
     unsigned char *xor_data = NULL;
     if (xor_size > 0) {
         xor_data = malloc(xor_size);
         if (!xor_data) { free(aes_ct); fclose(fin); return -1; }
         rd = fread(xor_data, 1, xor_size, fin);
-        if (rd < xor_size) memset(xor_data + rd, 0, xor_size - rd);
+        if (rd != xor_size) {
+            free(aes_ct);
+            free(xor_data);
+            fclose(fin);
+            return -8;
+        }
     }
     fclose(fin);
 
@@ -282,6 +307,11 @@ static int decrypt_v2_file(const char *input_path, const char *output_dir,
     snprintf(rel_noext, sizeof(rel_noext), "%s", rel_path);
     char *dot = strrchr(rel_noext, '.');
     if (dot) *dot = '\0';
+    if (has_parent_segment(rel_noext)) {
+        free(aes_pt);
+        free(xor_data);
+        return -7;
+    }
     snprintf(out_path, sizeof(out_path), "%s/%s%s", output_dir, rel_noext, ext);
 
     /* Skip if already decrypted */
