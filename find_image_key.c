@@ -482,6 +482,56 @@ static void save_keys(const char *dir) {
     printf("\nSaved %d keys to %s\n", solved, path);
 }
 
+/* ---- Load existing keys from image_keys.json ---- */
+static int load_keys(const char *dir) {
+    char path[MAX_PATH];
+    snprintf(path, sizeof(path), "%s/image_keys.json", dir);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *json = malloc(sz + 1);
+    fread(json, 1, sz, f);
+    json[sz] = '\0';
+    fclose(f);
+
+    int loaded = 0;
+    /* Parse "ct_hex": "key_hex" pairs */
+    const char *p = json;
+    while ((p = strchr(p, '"')) != NULL) {
+        p++;
+        const char *ct_end = strchr(p, '"');
+        if (!ct_end || ct_end - p != 32) { p = ct_end ? ct_end + 1 : p; continue; }
+        char ct_str[33]; memcpy(ct_str, p, 32); ct_str[32] = '\0';
+        unsigned char ct[16];
+        if (hex2bytes(ct_str, ct, 16) != 16) { p = ct_end + 1; continue; }
+
+        p = ct_end + 1;
+        p = strchr(p, '"');
+        if (!p) break;
+        p++;
+        const char *key_end = strchr(p, '"');
+        if (!key_end || key_end - p != 32) { p = key_end ? key_end + 1 : p; continue; }
+        char key_str[33]; memcpy(key_str, p, 32); key_str[32] = '\0';
+        unsigned char key[16];
+        if (hex2bytes(key_str, key, 16) != 16) { p = key_end + 1; continue; }
+
+        /* Match to pattern */
+        for (int i = 0; i < npatterns; i++) {
+            if (!patterns[i].solved && memcmp(patterns[i].ct, ct, 16) == 0) {
+                memcpy(patterns[i].key, key, 16);
+                patterns[i].solved = 1;
+                loaded++;
+                break;
+            }
+        }
+        p = key_end + 1;
+    }
+    free(json);
+    return loaded;
+}
+
 /* ---- Main ---- */
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
@@ -553,6 +603,11 @@ int main(int argc, char *argv[]) {
     if (total_covered < total_v2_files)
         printf("  ... and %d files in overflow patterns\n",
                total_v2_files - total_covered);
+
+    /* Load previously found keys */
+    int preloaded = load_keys(exe_dir);
+    if (preloaded > 0)
+        printf("\nLoaded %d existing keys from image_keys.json\n", preloaded);
 
     /* Phase 2: Continuous scanning */
     printf("\nScanning WeChat memory — keep browsing images! (Ctrl+C to stop)\n");
