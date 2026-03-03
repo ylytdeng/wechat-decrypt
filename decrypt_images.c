@@ -255,6 +255,13 @@ static int decrypt_v2_file(const char *input_path, const char *output_dir,
     if (dot) *dot = '\0';
     snprintf(out_path, sizeof(out_path), "%s/%s%s", output_dir, rel_noext, ext);
 
+    /* Skip if already decrypted */
+    struct stat st_out;
+    if (stat(out_path, &st_out) == 0 && st_out.st_size > 0) {
+        free(aes_pt); free(xor_data);
+        return 1; /* already exists */
+    }
+
     char parent[MAX_PATH];
     snprintf(parent, sizeof(parent), "%s", out_path);
     char *last_slash = strrchr(parent, '/');
@@ -283,6 +290,7 @@ typedef struct {
     const char *base_dir;
     int success;
     int skipped;
+    int existed;                       /* already decrypted */
     int no_key;                        /* V2 files with no matching key */
     int failed;
 } walk_ctx;
@@ -328,6 +336,8 @@ static void walk_dir(const char *dir, walk_ctx *ctx) {
                 if (ctx->success <= 5 || ctx->success % 1000 == 0) {
                     printf("  [%d] %s\n", ctx->success, rel);
                 }
+            } else if (ret == 1) {
+                ctx->existed++;
             } else if (ret == -2) {
                 ctx->skipped++;
             } else if (ret == -5) {
@@ -455,6 +465,7 @@ int main(int argc, char *argv[]) {
         .base_dir     = image_dir,
         .success      = 0,
         .skipped      = 0,
+        .existed      = 0,
         .no_key       = 0,
         .failed       = 0,
     };
@@ -464,6 +475,7 @@ int main(int argc, char *argv[]) {
     printf("\n==================================================\n");
     printf("Results:\n");
     printf("  Decrypted:  %d\n", ctx.success);
+    printf("  Existed:    %d (already decrypted, skipped)\n", ctx.existed);
     printf("  No key:     %d (run find_image_key to discover more keys)\n", ctx.no_key);
     printf("  Skipped:    %d (non-V2)\n", ctx.skipped);
     printf("  Failed:     %d\n", ctx.failed);
