@@ -74,6 +74,23 @@ static pattern_t patterns[MAX_PATTERNS];
 static int       npatterns = 0;
 static int       total_v2_files = 0;
 
+/* ---- Rejected key blacklist (false positives) ---- */
+#define MAX_REJECTED 256
+static unsigned char rejected_keys[MAX_REJECTED][16];
+static int n_rejected = 0;
+
+static int is_rejected(const unsigned char *key) {
+    for (int i = 0; i < n_rejected; i++)
+        if (memcmp(rejected_keys[i], key, 16) == 0) return 1;
+    return 0;
+}
+static void add_rejected(const unsigned char *key) {
+    if (n_rejected < MAX_REJECTED && !is_rejected(key)) {
+        memcpy(rejected_keys[n_rejected], key, 16);
+        n_rejected++;
+    }
+}
+
 /* ---- Graceful shutdown ---- */
 static volatile sig_atomic_t stop_flag = 0;
 static void sigint_handler(int sig) { (void)sig; stop_flag = 1; }
@@ -313,6 +330,7 @@ static int scan_pid(pid_t pid) {
 
                     for (int p = 0; p < n_unsolved; p++) {
                         if (is_image_magic(batch_pt + p*16)) {
+                            if (is_rejected(buf + j)) continue;
                             int idx = unsolved_idx[p];
                             memcpy(patterns[idx].key, buf + j, 16);
                             patterns[idx].solved = 1;
@@ -383,6 +401,7 @@ static int scan_pid(pid_t pid) {
                                     batch_pt, n_unsolved*16, &moved);
                                 for (int p = 0; p < n_unsolved; p++) {
                                     if (is_image_magic(batch_pt + p*16)) {
+                                        if (is_rejected(buf+k)) continue;
                                         int idx = unsolved_idx[p];
                                         memcpy(patterns[idx].key, buf+k, 16);
                                         patterns[idx].solved = 1;
@@ -576,7 +595,8 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < npatterns; i++) {
                 if (patterns[i].solved && !verify_key(i)) {
                     char kh[33]; bytes2hex(patterns[i].key, 16, kh);
-                    printf("  WARNING: Key %s failed verification (false positive?)\n", kh);
+                    printf("  REJECTED: %s (failed verification)\n", kh);
+                    add_rejected(patterns[i].key);
                     patterns[i].solved = 0;
                     memset(patterns[i].key, 0, 16);
                 }
