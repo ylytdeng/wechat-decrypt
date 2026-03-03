@@ -522,7 +522,9 @@ def main():
     with open(KEYS_FILE) as f:
         keys = json.load(f)
 
-    session_key_name = "session\\session.db" if "session\\session.db" in keys else "session/session.db"
+    session_key_name = os.path.join("session", "session.db")
+    if session_key_name not in keys:
+        session_key_name = "session/session.db" if "session/session.db" in keys else "session\\session.db"
     enc_key = bytes.fromhex(keys[session_key_name]["enc_key"])
     session_db = os.path.join(DB_DIR, "session", "session.db")
 

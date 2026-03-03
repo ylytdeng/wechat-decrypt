@@ -48,7 +48,7 @@ static int hex2bytes(const char *hex, unsigned char *out, int maxlen) {
     int len = 0;
     while (*hex && *(hex + 1) && len < maxlen) {
         unsigned int b;
-        sscanf(hex, "%2x", &b);
+        if (sscanf(hex, "%2x", &b) != 1) break;
         out[len++] = (unsigned char)b;
         hex += 2;
     }
@@ -85,10 +85,17 @@ static int load_key_map(const char *path) {
     if (!f) return 0;
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
+    if (sz <= 0) { fclose(f); return 0; }
     fseek(f, 0, SEEK_SET);
-    char *json = malloc(sz + 1);
-    fread(json, 1, sz, f);
-    json[sz] = '\0';
+    char *json = malloc((size_t)sz + 1);
+    if (!json) { fclose(f); return 0; }
+    size_t rd = fread(json, 1, (size_t)sz, f);
+    if (rd != (size_t)sz) {
+        fclose(f);
+        free(json);
+        return 0;
+    }
+    json[rd] = '\0';
     fclose(f);
 
     /* Simple parser: find all "32hex": "32hex" pairs */
@@ -119,8 +126,10 @@ static int load_key_map(const char *path) {
         key_hex[32] = '\0';
         p = end + 1;
 
-        hex2bytes(ct_hex, key_map[n_keys].ct, 16);
-        hex2bytes(key_hex, key_map[n_keys].key, 16);
+        if (hex2bytes(ct_hex, key_map[n_keys].ct, 16) != 16 ||
+            hex2bytes(key_hex, key_map[n_keys].key, 16) != 16) {
+            continue;
+        }
         n_keys++;
     }
     free(json);
@@ -197,7 +206,12 @@ static int decrypt_v2_file(const char *input_path, const char *output_dir,
     memcpy(&aes_size, header + 6, 4);
     memcpy(&xor_size, header + 10, 4);
 
-    uint32_t aes_ct_size = ((aes_size + 15) / 16) * 16;
+    if ((uint64_t)aes_size > 100u * 1024u * 1024u ||
+        (uint64_t)xor_size > 100u * 1024u * 1024u) {
+        return -6;
+    }
+
+    size_t aes_ct_size = ((size_t)aes_size + 15) / 16 * 16;
 
     unsigned char *aes_ct = malloc(aes_ct_size);
     if (!aes_ct) { fclose(fin); return -1; }
@@ -396,14 +410,24 @@ int main(int argc, char *argv[]) {
 
         fseek(cf, 0, SEEK_END);
         long sz = ftell(cf);
+        if (sz <= 0) { fclose(cf); return 1; }
         fseek(cf, 0, SEEK_SET);
-        char *json = malloc(sz + 1);
-        fread(json, 1, sz, cf);
+        char *json = malloc((size_t)sz + 1);
+        if (!json) { fclose(cf); return 1; }
+        size_t rd = fread(json, 1, (size_t)sz, cf);
+        if (rd != (size_t)sz) {
+            free(json);
+            fclose(cf);
+            return 1;
+        }
         json[sz] = '\0';
         fclose(cf);
 
-        if (json_get_string(json, "image_key", key_hex, sizeof(key_hex)))
+        if (json_get_string(json, "image_key", key_hex, sizeof(key_hex)) &&
+            key_hex[0] != '\0')
             have_single_key = 1;
+        else
+            have_single_key = 0;
 
         char db_dir[MAX_PATH] = "";
         json_get_string(json, "db_dir", db_dir, sizeof(db_dir));

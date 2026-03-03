@@ -102,8 +102,15 @@ static void bytes2hex(const unsigned char *d, int n, char *out) {
 }
 static int hex2bytes(const char *h, unsigned char *o, int max) {
     int n = 0;
-    while (*h && *(h+1) && n < max) {
-        unsigned int b; sscanf(h, "%2x", &b);
+    while (n < max) {
+        if (!h[0] || !h[1]) return 0;
+        if (!((h[0] >= '0' && h[0] <= '9') || (h[0] >= 'a' && h[0] <= 'f') ||
+              (h[0] >= 'A' && h[0] <= 'F')) return 0;
+        if (!((h[1] >= '0' && h[1] <= '9') || (h[1] >= 'a' && h[1] <= 'f') ||
+              (h[1] >= 'A' && h[1] <= 'F')) return 0;
+
+        unsigned int b = 0;
+        if (sscanf(h, "%2x", &b) != 1) return 0;
         o[n++] = (unsigned char)b; h += 2;
     }
     return n;
@@ -184,10 +191,19 @@ static int cmp_patterns(const void *a, const void *b) {
 static int get_wechat_pids(pid_t *pids, int max) {
     int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
     size_t sz = 0;
-    sysctl(mib, 4, NULL, &sz, NULL, 0);
-    struct kinfo_proc *procs = malloc(sz);
-    sysctl(mib, 4, procs, &sz, NULL, 0);
-    int n = (int)(sz / sizeof(struct kinfo_proc)), cnt = 0;
+    if (sysctl(mib, 4, NULL, &sz, NULL, 0) != KERN_SUCCESS || sz == 0)
+        return 0;
+
+    size_t alloc_sz = sz + (sz >> 2);
+    struct kinfo_proc *procs = malloc(alloc_sz);
+    if (!procs) return 0;
+
+    if (sysctl(mib, 4, procs, &alloc_sz, NULL, 0) != KERN_SUCCESS) {
+        free(procs);
+        return 0;
+    }
+
+    int n = (int)(alloc_sz / sizeof(struct kinfo_proc)), cnt = 0;
     for (int i = 0; i < n && cnt < max; i++)
         if (strstr(procs[i].kp_proc.p_comm, "WeChat"))
             pids[cnt++] = procs[i].kp_proc.p_pid;
@@ -490,11 +506,18 @@ static int load_keys(const char *dir) {
     if (!f) return 0;
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
+    if (sz < 0) { fclose(f); return 0; }
     fseek(f, 0, SEEK_SET);
-    char *json = malloc(sz + 1);
-    fread(json, 1, sz, f);
-    json[sz] = '\0';
+    char *json = malloc((size_t)sz + 1);
+    if (!json) { fclose(f); return 0; }
+    size_t rd = fread(json, 1, (size_t)sz, f);
+    if (rd != (size_t)sz) {
+        free(json);
+        fclose(f);
+        return 0;
+    }
     fclose(f);
+    json[rd] = '\0';
 
     int loaded = 0;
     /* Parse "ct_hex": "key_hex" pairs */
@@ -560,10 +583,17 @@ int main(int argc, char *argv[]) {
         if (cf) {
             fseek(cf, 0, SEEK_END);
             long sz = ftell(cf);
+            if (sz <= 0) { fclose(cf); return 1; }
             fseek(cf, 0, SEEK_SET);
-            char *json = malloc(sz + 1);
-            fread(json, 1, sz, cf);
-            json[sz] = '\0';
+            char *json = malloc((size_t)sz + 1);
+            if (!json) { fclose(cf); return 1; }
+            size_t rd = fread(json, 1, (size_t)sz, cf);
+            if (rd != (size_t)sz) {
+                free(json);
+                fclose(cf);
+                return 1;
+            }
+            json[rd] = '\0';
             fclose(cf);
             char db_dir[MAX_PATH];
             if (json_get_string(json, "db_dir", db_dir, sizeof(db_dir))) {
