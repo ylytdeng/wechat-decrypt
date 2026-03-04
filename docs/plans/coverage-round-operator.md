@@ -5,14 +5,14 @@
 ## 统一命令
 
 ```bash
-python3 -m tools.image_coverage.run_round --dry-run
-python3 -m tools.image_coverage.run_round
+python -m tools.image_coverage.run_round --dry-run
+python -m tools.image_coverage.run_round
 ```
 
 可选：测试或隔离目录时可加 `--base`，例如：
 
 ```bash
-python3 -m tools.image_coverage.run_round --dry-run --base ./work/image_coverage_test
+python -m tools.image_coverage.run_round --dry-run --base ./work/image_coverage_test
 ```
 
 ## Round 工件

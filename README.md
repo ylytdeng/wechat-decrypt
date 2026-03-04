@@ -164,8 +164,8 @@ python find_image_key.py
 使用统一入口创建一轮覆盖工件：
 
 ```bash
-python3 -m tools.image_coverage.run_round --dry-run
-python3 -m tools.image_coverage.run_round
+python -m tools.image_coverage.run_round --dry-run
+python -m tools.image_coverage.run_round
 ```
 
 每次执行都会在 `work/image_coverage/round-YYYYMMDD-HHMM`（同分钟自动加 `-01`、`-02`）生成：

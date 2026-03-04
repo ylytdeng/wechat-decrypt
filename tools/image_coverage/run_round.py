@@ -21,7 +21,11 @@ def _create_unique_round_dir(base_round_dir: Path) -> Path:
             suffix += 1
 
 
-def run_round(base: Path, dry_run: bool = True) -> Path:
+def run_round(
+    base: Path,
+    dry_run: bool = True,
+    decrypted_images_dir: Path | str = Path("./decrypted_images"),
+) -> Path:
     """Create one round folder and minimal artifacts.
 
     ``dry_run`` controls whether to execute external actions. This minimal
@@ -32,7 +36,8 @@ def run_round(base: Path, dry_run: bool = True) -> Path:
     base_path = Path(base)
     round_dir = _create_unique_round_dir(build_round_dir(base_path))
 
-    unresolved_summary = summarize_unresolved(base_path / "decrypted_images")
+    decrypted_images_path = Path(decrypted_images_dir)
+    unresolved_summary = summarize_unresolved(decrypted_images_path)
     by_hash = unresolved_summary.get("by_hash", {})
     by_month = unresolved_summary.get("by_month", {})
 
@@ -63,19 +68,22 @@ def run_round(base: Path, dry_run: bool = True) -> Path:
     open_tasks_path.write_text(build_open_tasks(rows), encoding="utf-8")
 
     report_path = round_dir / "report.md"
-    report_path.write_text(
-        "\n".join(
-            [
-                "# Round Report",
-                "",
-                f"dry_run: {str(dry_run).lower()}",
-                (
-                    "dry_run controls whether to execute external actions "
-                    "(this minimal implementation only generates local artifacts)."
-                ),
-                f"round_dir: {round_dir}",
-            ]
+    report_lines = [
+        "# Round Report",
+        "",
+        f"dry_run: {str(dry_run).lower()}",
+        (
+            "dry_run controls whether to execute external actions "
+            "(this minimal implementation only generates local artifacts)."
         ),
+        f"round_dir: {round_dir}",
+        f"source_decrypted_images_dir: {decrypted_images_path}",
+    ]
+    if not decrypted_images_path.exists():
+        report_lines.append("warning: decrypted_images_dir does not exist")
+
+    report_path.write_text(
+        "\n".join(report_lines),
         encoding="utf-8",
     )
 
@@ -97,12 +105,22 @@ def _build_parser() -> argparse.ArgumentParser:
         default=Path("work/image_coverage"),
         help="Base directory for round folders (default: work/image_coverage).",
     )
+    parser.add_argument(
+        "--decrypted-images-dir",
+        type=Path,
+        default=Path("./decrypted_images"),
+        help="Source directory used for unresolved image analysis (default: ./decrypted_images).",
+    )
     return parser
 
 
 def main() -> int:
     args = _build_parser().parse_args()
-    round_dir = run_round(args.base, dry_run=args.dry_run)
+    round_dir = run_round(
+        args.base,
+        dry_run=args.dry_run,
+        decrypted_images_dir=args.decrypted_images_dir,
+    )
     print(f"round_dir: {round_dir}")
     print(f"open_tasks: {round_dir / 'open_tasks.md'}")
     print(f"report_round: {round_dir / 'report.md'}")

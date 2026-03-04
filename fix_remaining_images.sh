@@ -4,14 +4,15 @@ set -euo pipefail
 # Round helper for remaining image coverage.
 # Artifacts: open_tasks.md + report.md (report round).
 
+PYTHON_BIN="${PYTHON_BIN:-python}"
 mode="${1:---dry-run}"
 
 case "$mode" in
   --dry-run)
-    python3 -m tools.image_coverage.run_round --dry-run
+    "$PYTHON_BIN" -m tools.image_coverage.run_round --dry-run
     ;;
   --run)
-    python3 -m tools.image_coverage.run_round
+    "$PYTHON_BIN" -m tools.image_coverage.run_round
     ;;
   --help|-h)
     cat <<'USAGE'
@@ -20,8 +21,8 @@ Usage:
   ./fix_remaining_images.sh --run
 
 Equivalent commands:
-  python3 -m tools.image_coverage.run_round --dry-run
-  python3 -m tools.image_coverage.run_round
+  python -m tools.image_coverage.run_round --dry-run
+  python -m tools.image_coverage.run_round
 USAGE
     ;;
   *)

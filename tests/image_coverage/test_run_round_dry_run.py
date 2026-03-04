@@ -6,7 +6,12 @@ from tools.image_coverage.run_round import run_round
 
 
 def test_run_round_dry_run_writes_artifacts(tmp_path: Path) -> None:
-    round_dir = run_round(tmp_path, dry_run=True)
+    decrypted_images_dir = tmp_path / "decrypted_images"
+    round_dir = run_round(
+        tmp_path,
+        dry_run=True,
+        decrypted_images_dir=decrypted_images_dir,
+    )
 
     assert round_dir.exists()
     assert round_dir.is_dir()
@@ -27,6 +32,8 @@ def test_run_round_dry_run_writes_artifacts(tmp_path: Path) -> None:
         "(this minimal implementation only generates local artifacts)."
         in report
     )
+    assert f"source_decrypted_images_dir: {decrypted_images_dir}" in report
+    assert "warning: decrypted_images_dir does not exist" in report
 
 
 def test_run_round_same_minute_does_not_conflict(tmp_path: Path, monkeypatch) -> None:
@@ -36,9 +43,22 @@ def test_run_round_same_minute_does_not_conflict(tmp_path: Path, monkeypatch) ->
         lambda _base: fixed_round_dir,
     )
 
-    first_round = run_round(tmp_path, dry_run=True)
-    second_round = run_round(tmp_path, dry_run=True)
-    third_round = run_round(tmp_path, dry_run=True)
+    decrypted_images_dir = tmp_path / "decrypted_images"
+    first_round = run_round(
+        tmp_path,
+        dry_run=True,
+        decrypted_images_dir=decrypted_images_dir,
+    )
+    second_round = run_round(
+        tmp_path,
+        dry_run=True,
+        decrypted_images_dir=decrypted_images_dir,
+    )
+    third_round = run_round(
+        tmp_path,
+        dry_run=True,
+        decrypted_images_dir=decrypted_images_dir,
+    )
 
     assert first_round.name == "round-20260304-0905"
     assert second_round.name == "round-20260304-0905-01"
@@ -49,7 +69,12 @@ def test_run_round_same_minute_does_not_conflict(tmp_path: Path, monkeypatch) ->
 
 
 def test_run_round_report_marks_non_dry_run(tmp_path: Path) -> None:
-    round_dir = run_round(tmp_path, dry_run=False)
+    decrypted_images_dir = tmp_path / "decrypted_images"
+    round_dir = run_round(
+        tmp_path,
+        dry_run=False,
+        decrypted_images_dir=decrypted_images_dir,
+    )
     report = (round_dir / "report.md").read_text(encoding="utf-8")
 
     assert "dry_run: false" in report
@@ -61,7 +86,7 @@ def test_run_round_report_marks_non_dry_run(tmp_path: Path) -> None:
 
 
 def test_run_round_generates_open_tasks_from_unresolved_hashes(tmp_path: Path) -> None:
-    decrypted_images_dir = tmp_path / "decrypted_images"
+    decrypted_images_dir = tmp_path / "custom_decrypted_images_dir"
 
     first = decrypted_images_dir / "attach" / "hash_alpha" / "2026-01" / "Img" / "a.bin"
     second = (
@@ -73,9 +98,16 @@ def test_run_round_generates_open_tasks_from_unresolved_hashes(tmp_path: Path) -
     first.write_bytes(b"x")
     second.write_bytes(b"x")
 
-    round_dir = run_round(tmp_path, dry_run=True)
+    round_dir = run_round(
+        tmp_path,
+        dry_run=True,
+        decrypted_images_dir=decrypted_images_dir,
+    )
     open_tasks = (round_dir / "open_tasks.md").read_text(encoding="utf-8")
+    report = (round_dir / "report.md").read_text(encoding="utf-8")
 
     assert open_tasks != build_open_tasks([])
     assert "chat_name: hash_alpha" in open_tasks
     assert "chat_name: hash_bravo" in open_tasks
+    assert f"source_decrypted_images_dir: {decrypted_images_dir}" in report
+    assert "warning: decrypted_images_dir does not exist" not in report
