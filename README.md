@@ -132,19 +132,26 @@ python find_image_key.py
 
 #### macOS 图片解密
 
-macOS 上使用 C 版工具（通过 Mach VM API + CommonCrypto）：
+macOS 上使用 C 版工具（通过 Mach VM API + CommonCrypto，性能比 Python 高 100 倍）：
+
+**前置条件：**
+- Xcode Command Line Tools: `xcode-select --install`
+- 微信需要 ad-hoc 签名：`sudo codesign --force --deep --sign - /Applications/WeChat.app`
+- 开发者模式：系统设置 → 隐私与安全 → 开发者模式 → 开启
 
 ```bash
 # 编译
 cc -O3 -o find_image_key find_image_key.c -framework Security
 cc -O3 -o decrypt_images decrypt_images.c -framework Security
 
-# 1. 持续扫描图片密钥（在微信中浏览图片触发密钥加载）
+# 1. 持续扫描图片密钥（在微信中浏览图片，扫描器自动捕获密钥）
 sudo ./find_image_key
 
 # 2. 批量解密所有 V2 图片
 ./decrypt_images
 ```
+
+`find_image_key` 会自动发现所有未解密的 V2 图片 pattern，持续扫描微信进程内存。当用户在微信中浏览图片时捕获密钥，保存到 `image_keys.json`。支持 `--deep` 模式进行逐字节深度扫描。
 
 ## 文件说明
 

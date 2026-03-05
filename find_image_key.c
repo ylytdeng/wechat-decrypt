@@ -433,12 +433,12 @@ static int scan_pid(pid_t pid) {
                     }
                 }
 
-                /* Method 2: ASCII [a-z0-9]{16+} at unaligned positions */
+                /* Method 2: hex string [0-9a-f]{16+} at unaligned positions */
                 int run = 0, run_start = 0;
                 for (mach_msg_type_number_t j = 0;
                      j <= data_cnt && !stop_flag; j++) {
                     int is_hex = (j < data_cnt) &&
-                        ((buf[j]>='a' && buf[j]<='z') ||
+                        ((buf[j]>='a' && buf[j]<='f') ||
                          (buf[j]>='0' && buf[j]<='9'));
                     if (is_hex) {
                         if (!run) run_start = j;
