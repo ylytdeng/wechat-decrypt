@@ -130,6 +130,22 @@ python find_image_key.py
 
 > **注意**: AES 密钥仅在微信查看图片时临时加载到内存中。如果扫描未找到密钥，请先在微信中查看几张图片，然后立即重新运行脚本。
 
+#### macOS 图片解密
+
+macOS 上使用 C 版工具（通过 Mach VM API + CommonCrypto）：
+
+```bash
+# 编译
+cc -O3 -o find_image_key find_image_key.c -framework Security
+cc -O3 -o decrypt_images decrypt_images.c -framework Security
+
+# 1. 持续扫描图片密钥（在微信中浏览图片触发密钥加载）
+sudo ./find_image_key
+
+# 2. 批量解密所有 V2 图片
+./decrypt_images
+```
+
 ## 文件说明
 
 | 文件 | 说明 |
@@ -146,6 +162,8 @@ python find_image_key.py
 | `find_image_key_monitor.py` | 持续监控版密钥提取（推荐） |
 | `latency_test.py` | 延迟测量诊断工具 |
 | `find_all_keys_macos.c` | macOS 版内存密钥扫描器 (C, Mach VM API) |
+| `find_image_key.c` | macOS 版图片密钥扫描器 (C, 持续监控模式) |
+| `decrypt_images.c` | macOS 版批量图片解密器 (C, 多密钥支持) |
 
 ## 技术细节
 
