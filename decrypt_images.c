@@ -55,11 +55,6 @@ static int hex2bytes(const char *hex, unsigned char *out, int maxlen) {
     return len;
 }
 
-static void bytes2hex(const unsigned char *d, int n, char *out) {
-    for (int i = 0; i < n; i++) sprintf(out + i*2, "%02x", d[i]);
-    out[n*2] = '\0';
-}
-
 /* Minimal JSON string extractor (for simple unescaped string values only). */
 static int json_get_string(const char *json, const char *key,
                            char *value, int maxlen) {
@@ -248,11 +243,16 @@ static int decrypt_v2_file(const char *input_path, const char *output_dir,
         ? (size_t)aes_size + 16
         : ((size_t)aes_size + 15) / 16 * 16;
 
-    /* Get total file size to calculate raw_data segment */
+    /* Get total file size and validate header claims fit within it */
     long cur_pos = ftell(fin);
     fseek(fin, 0, SEEK_END);
     long file_size = ftell(fin);
     fseek(fin, cur_pos, SEEK_SET);
+
+    if ((long)aes_ct_size + (long)xor_size > file_size - HEADER_SIZE) {
+        fclose(fin);
+        return -6;  /* header claims more data than file contains */
+    }
 
     unsigned char *aes_ct = malloc(aes_ct_size);
     if (!aes_ct) { fclose(fin); return -1; }

@@ -433,7 +433,12 @@ static int scan_pid(pid_t pid) {
                     }
                 }
 
-                /* Method 2: hex string [0-9a-f]{16+} at unaligned positions */
+                /* Method 2: hex string [0-9a-f]{16+} at unaligned positions.
+                 * WeChat may store the AES key as a hex-encoded ASCII string
+                 * in memory (e.g. "cfcd208495d565ef" = 16 ASCII bytes).
+                 * We use the raw ASCII bytes directly as the 16-byte AES key,
+                 * since the key is arbitrary bytes and the hex representation
+                 * itself is 16 bytes for a 64-bit key half. */
                 int run = 0, run_start = 0;
                 for (mach_msg_type_number_t j = 0;
                      j <= data_cnt && !stop_flag; j++) {
