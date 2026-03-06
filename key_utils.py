@@ -1,9 +1,16 @@
 import os
+import posixpath
 
 
 def strip_key_metadata(keys):
-    """移除 all_keys.json 中以下划线开头的元数据字段。"""
+    """移除 all_keys.json 中以下划线开头的元数据字段，返回新 dict。"""
     return {k: v for k, v in keys.items() if not k.startswith("_")}
+
+
+def _is_safe_rel_path(path):
+    """检查路径不包含 .. 等遍历组件。"""
+    normalized = path.replace("\\", "/")
+    return ".." not in posixpath.normpath(normalized).split("/")
 
 
 def key_path_variants(rel_path):
@@ -23,6 +30,8 @@ def key_path_variants(rel_path):
 
 def get_key_info(keys, rel_path):
     """按相对路径查找数据库密钥，自动兼容不同平台分隔符。"""
+    if not _is_safe_rel_path(rel_path):
+        return None
     for candidate in key_path_variants(rel_path):
         if candidate in keys and not candidate.startswith("_"):
             return keys[candidate]

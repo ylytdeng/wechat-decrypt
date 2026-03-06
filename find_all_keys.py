@@ -1,7 +1,9 @@
+import functools
 import platform
 import sys
 
 
+@functools.lru_cache(maxsize=1)
 def _load_impl():
     system = platform.system().lower()
     if system == "windows":
@@ -10,7 +12,10 @@ def _load_impl():
     if system == "linux":
         import find_all_keys_linux as impl
         return impl
-    raise RuntimeError(f"当前平台暂不支持通过 find_all_keys.py 提取密钥: {platform.system()}")
+    raise RuntimeError(
+        f"当前平台暂不支持通过 find_all_keys.py 提取密钥: {platform.system()}\n"
+        f"macOS 请使用 find_all_keys_macos.c (C 版扫描器)"
+    )
 
 
 def get_pids():

@@ -315,7 +315,7 @@ def build_username_db_map():
     # 先获取每个 DB 的 mtime 用于排序
     db_mtimes = {}
     for i in range(5):
-        rel_key = f"message\\message_{i}.db"
+        rel_key = os.path.join("message", f"message_{i}.db")
         db_path = os.path.join(DB_DIR, "message", f"message_{i}.db")
         try:
             db_mtimes[rel_key] = os.path.getmtime(db_path)
@@ -328,7 +328,7 @@ def build_username_db_map():
         db_path = os.path.join(decrypted_msg_dir, f"message_{i}.db")
         if not os.path.exists(db_path):
             continue
-        rel_key = f"message\\message_{i}.db"
+        rel_key = os.path.join("message", f"message_{i}.db")
         try:
             conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
             for row in conn.execute("SELECT user_name FROM Name2Id").fetchall():
@@ -597,7 +597,7 @@ class SessionMonitor:
         #    local_id 不全局唯一，需要同时匹配 create_time
         file_md5 = None
         for _try in range(2):
-            res_path = self.db_cache.get("message\\message_resource.db")
+            res_path = self.db_cache.get(os.path.join("message", "message_resource.db"))
             if not res_path:
                 return None
             try:
@@ -622,7 +622,7 @@ class SessionMonitor:
             except Exception as e:
                 if 'malformed' in str(e) and _try == 0:
                     print(f"  [img] resource DB malformed, 强制刷新...", flush=True)
-                    self.db_cache.invalidate("message\\message_resource.db")
+                    self.db_cache.invalidate(os.path.join("message", "message_resource.db"))
                     continue
                 print(f"  [img] 查询 message_resource 失败: {e}", flush=True)
                 return None
@@ -1917,9 +1917,9 @@ def main():
     def _warmup():
         try:
             t0 = time.perf_counter()
-            warmup_keys = ["message\\message_resource.db"]
+            warmup_keys = [os.path.join("message", "message_resource.db")]
             for i in range(5):
-                k = f"message\\message_{i}.db"
+                k = os.path.join("message", f"message_{i}.db")
                 if get_key_info(keys, k):
                     warmup_keys.append(k)
             for k in warmup_keys:

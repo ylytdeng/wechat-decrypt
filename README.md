@@ -45,6 +45,10 @@ Linux：
 
 ### 安装依赖
 
+```bash
+pip install pycryptodome
+```
+
 ### 快速开始
 
 Windows：

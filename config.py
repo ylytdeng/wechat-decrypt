@@ -11,18 +11,24 @@ import sys
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
 _SYSTEM = platform.system().lower()
-_DEFAULT_TEMPLATE_DIR = (
-    os.path.expanduser("~/Documents/xwechat_files/your_wxid/db_storage")
-    if _SYSTEM == "linux"
-    else r"D:\xwechat_files\your_wxid\db_storage"
-)
+
+if _SYSTEM == "linux":
+    _DEFAULT_TEMPLATE_DIR = os.path.expanduser("~/Documents/xwechat_files/your_wxid/db_storage")
+    _DEFAULT_PROCESS = "wechat"
+elif _SYSTEM == "darwin":
+    # macOS 使用独立的 C 扫描器 (find_all_keys_macos.c)，此处仅提供 config 默认值
+    _DEFAULT_TEMPLATE_DIR = os.path.expanduser("~/Documents/xwechat_files/your_wxid/db_storage")
+    _DEFAULT_PROCESS = "WeChat"
+else:
+    _DEFAULT_TEMPLATE_DIR = r"D:\xwechat_files\your_wxid\db_storage"
+    _DEFAULT_PROCESS = "Weixin.exe"
 
 _DEFAULT = {
     "db_dir": _DEFAULT_TEMPLATE_DIR,
     "keys_file": "all_keys.json",
     "decrypted_dir": "decrypted",
     "decoded_image_dir": "decoded_images",
-    "wechat_process": "wechat" if _SYSTEM == "linux" else "Weixin.exe",
+    "wechat_process": _DEFAULT_PROCESS,
 }
 
 
@@ -97,16 +103,16 @@ def _auto_detect_db_dir_windows():
 
 
 def _auto_detect_db_dir_linux():
-    """自动检测 Linux 微信 db_storage 路径。"""
+    """自动检测 Linux 微信 db_storage 路径。
+
+    优先搜索当前用户的 home 目录，避免以 root 运行时误检测其他用户的数据。
+    """
     seen = set()
     candidates = []
-    search_roots = {
+    # 只搜索当前用户的 home 目录
+    search_roots = [
         os.path.expanduser("~/Documents/xwechat_files"),
-    }
-
-    if os.path.isdir("/home"):
-        for entry in os.listdir("/home"):
-            search_roots.add(os.path.join("/home", entry, "Documents", "xwechat_files"))
+    ]
 
     for root in search_roots:
         if not os.path.isdir(root):
@@ -118,13 +124,14 @@ def _auto_detect_db_dir_linux():
                 seen.add(normalized)
                 candidates.append(match)
 
+    # 早期 Linux 微信版本（wine/容器方案）使用的数据路径
     old_path = os.path.expanduser("~/.local/share/weixin/data/db_storage")
     if os.path.isdir(old_path):
         normalized = os.path.normcase(os.path.normpath(old_path))
         if normalized not in seen:
             candidates.append(old_path)
 
-    # Linux 优先使用最近活跃账号：按 message 目录 mtime 降序
+    # 优先使用最近活跃账号：按 message 目录 mtime 降序（近似排序，best-effort）
     def _mtime(path):
         msg_dir = os.path.join(path, "message")
         target = msg_dir if os.path.isdir(msg_dir) else path

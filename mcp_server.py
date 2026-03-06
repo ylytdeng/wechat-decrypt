@@ -250,7 +250,7 @@ def get_contact_names():
             pass
 
     # 实时解密
-    path = _cache.get("contact\\contact.db")
+    path = _cache.get(os.path.join("contact", "contact.db"))
     if path:
         try:
             _contact_names, _contact_full = _load_contacts_from(path)
@@ -331,7 +331,8 @@ def _parse_message_content(content, local_type, is_group):
     return sender, text
 
 
-# 消息 DB 的 rel_keys（排除 fts/resource/media/biz）
+# 消息 DB 的 rel_keys
+# 用 message_\d+\.db$ 匹配，自然排除 message_resource.db / message_fts_*.db
 MSG_DB_KEYS = sorted([
     k for k in ALL_KEYS
     if any(v.startswith("message/") for v in key_path_variants(k))
@@ -381,7 +382,7 @@ def get_recent_sessions(limit: int = 20) -> str:
     Args:
         limit: 返回的会话数量，默认20
     """
-    path = _cache.get("session\\session.db")
+    path = _cache.get(os.path.join("session", "session.db"))
     if not path:
         return "错误: 无法解密 session.db"
 
@@ -637,7 +638,7 @@ def get_new_messages() -> str:
     """获取自上次调用以来的新消息。首次调用返回最近的会话状态。"""
     global _last_check_state
 
-    path = _cache.get("session\\session.db")
+    path = _cache.get(os.path.join("session", "session.db"))
     if not path:
         return "错误: 无法解密 session.db"
 
