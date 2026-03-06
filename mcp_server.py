@@ -12,6 +12,7 @@ from Crypto.Cipher import AES
 from mcp.server.fastmcp import FastMCP
 import zstandard as zstd
 from decode_image import ImageResolver
+from key_utils import get_key_info, key_path_variants, strip_key_metadata
 
 # ============ 加密常量 ============
 PAGE_SZ = 4096
@@ -50,7 +51,7 @@ elif not os.path.isabs(DECODED_IMAGE_DIR):
     DECODED_IMAGE_DIR = os.path.join(SCRIPT_DIR, DECODED_IMAGE_DIR)
 
 with open(KEYS_FILE) as f:
-    ALL_KEYS = json.load(f)
+    ALL_KEYS = strip_key_metadata(json.load(f))
 
 # ============ 解密函数 ============
 
@@ -175,9 +176,10 @@ class DBCache:
             pass
 
     def get(self, rel_key):
-        if rel_key not in ALL_KEYS:
+        key_info = get_key_info(ALL_KEYS, rel_key)
+        if not key_info:
             return None
-        rel_path = rel_key.replace('\\', os.sep)
+        rel_path = rel_key.replace('\\', '/').replace('/', os.sep)
         db_path = os.path.join(DB_DIR, rel_path)
         wal_path = db_path + "-wal"
         if not os.path.exists(db_path):
@@ -195,7 +197,7 @@ class DBCache:
                 return c_path
 
         tmp_path = self._cache_path(rel_key)
-        enc_key = bytes.fromhex(ALL_KEYS[rel_key]["enc_key"])
+        enc_key = bytes.fromhex(key_info["enc_key"])
         full_decrypt(db_path, tmp_path, enc_key)
         if os.path.exists(wal_path):
             decrypt_wal(wal_path, tmp_path, enc_key)
@@ -332,7 +334,8 @@ def _parse_message_content(content, local_type, is_group):
 # 消息 DB 的 rel_keys（排除 fts/resource/media/biz）
 MSG_DB_KEYS = sorted([
     k for k in ALL_KEYS
-    if k.startswith("message\\message_") and k.endswith(".db")
+    if any(v.startswith("message/") for v in key_path_variants(k))
+    and any(v.endswith(".db") for v in key_path_variants(k))
     and "fts" not in k and "resource" not in k
 ])
 

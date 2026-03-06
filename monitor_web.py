@@ -17,6 +17,7 @@ import urllib.parse
 import glob as glob_mod
 import zstandard as zstd
 from decode_image import extract_md5_from_packed_info, decrypt_dat_file, is_v2_format
+from key_utils import get_key_info, strip_key_metadata
 
 _zstd_dctx = zstd.ZstdDecompressor()
 
@@ -62,7 +63,7 @@ def _build_emoji_lookup(keys_dict):
     """从 emoticon.db 构建 emoji md5 → URL 映射（直接解密，不走 cache）"""
     global _emoji_lookup, _emoji_keys_dict, _emoji_last_refresh
     _emoji_keys_dict = keys_dict
-    key_info = keys_dict.get("emoticon\\emoticon.db")
+    key_info = get_key_info(keys_dict, os.path.join("emoticon", "emoticon.db"))
     if not key_info:
         print("[emoji] 无 emoticon.db key，跳过", flush=True)
         return
@@ -254,13 +255,14 @@ class MonitorDBCache:
 
     def get(self, rel_key):
         """返回解密后的临时文件路径，mtime 变化时自动重新解密"""
-        if rel_key not in self.keys:
+        key_info = get_key_info(self.keys, rel_key)
+        if not key_info:
             return None
 
         lock = self._get_lock(rel_key)
         with lock:
-            enc_key = bytes.fromhex(self.keys[rel_key]["enc_key"])
-            rel_path = rel_key.replace('\\', os.sep)
+            enc_key = bytes.fromhex(key_info["enc_key"])
+            rel_path = rel_key.replace('\\', '/').replace('/', os.sep)
             db_path = os.path.join(DB_DIR, rel_path)
             wal_path = db_path + "-wal"
 
@@ -273,7 +275,7 @@ class MonitorDBCache:
             except OSError:
                 return None
 
-            out_name = rel_key.replace('\\', '_')
+            out_name = rel_key.replace('\\', '_').replace('/', '_')
             out_path = os.path.join(self.tmp_dir, out_name)
 
             prev = self._state.get(rel_key)
@@ -753,10 +755,11 @@ class SessionMonitor:
 
     def _fresh_decrypt_query(self, db_key, table_name, prev_ts, curr_ts):
         """独立解密 message DB 到临时文件并查询，避免共享缓存竞态"""
-        if db_key not in self.db_cache.keys:
+        key_info = get_key_info(self.db_cache.keys, db_key)
+        if not key_info:
             return []
-        enc_key = bytes.fromhex(self.db_cache.keys[db_key]["enc_key"])
-        rel_path = db_key.replace('\\', os.sep)
+        enc_key = bytes.fromhex(key_info["enc_key"])
+        rel_path = db_key.replace('\\', '/').replace('/', os.sep)
         db_path = os.path.join(DB_DIR, rel_path)
         wal_path = db_path + "-wal"
         if not os.path.exists(db_path):
@@ -1875,9 +1878,13 @@ def main():
     print("=" * 60, flush=True)
 
     with open(KEYS_FILE) as f:
-        keys = json.load(f)
+        keys = strip_key_metadata(json.load(f))
 
-    enc_key = bytes.fromhex(keys["session\\session.db"]["enc_key"])
+    session_key_info = get_key_info(keys, os.path.join("session", "session.db"))
+    if not session_key_info:
+        print("[ERROR] 找不到 session.db 的密钥", flush=True)
+        sys.exit(1)
+    enc_key = bytes.fromhex(session_key_info["enc_key"])
     session_db = os.path.join(DB_DIR, "session", "session.db")
 
     print("加载联系人...", flush=True)
@@ -1913,7 +1920,7 @@ def main():
             warmup_keys = ["message\\message_resource.db"]
             for i in range(5):
                 k = f"message\\message_{i}.db"
-                if k in keys:
+                if get_key_info(keys, k):
                     warmup_keys.append(k)
             for k in warmup_keys:
                 t1 = time.perf_counter()

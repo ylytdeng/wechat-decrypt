@@ -21,6 +21,7 @@ RESERVE_SZ = 80  # IV(16) + HMAC(64)
 SQLITE_HDR = b'SQLite format 3\x00'
 
 from config import load_config
+from key_utils import get_key_info, strip_key_metadata
 _cfg = load_config()
 DB_DIR = _cfg["db_dir"]
 OUT_DIR = _cfg["decrypted_dir"]
@@ -118,7 +119,7 @@ def main():
     with open(KEYS_FILE) as f:
         keys = json.load(f)
 
-    keys.pop("_db_dir", None)
+    keys = strip_key_metadata(keys)
     print(f"\n加载 {len(keys)} 个数据库密钥")
     print(f"输出目录: {OUT_DIR}")
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -142,14 +143,13 @@ def main():
     total_bytes = 0
 
     for rel, path, sz in db_files:
-        # 用反斜杠格式查找key (json中的key是Windows路径)
-        rel_key = rel.replace('/', '\\')
-        if rel_key not in keys:
+        key_info = get_key_info(keys, rel)
+        if not key_info:
             print(f"SKIP: {rel} (无密钥)")
             failed += 1
             continue
 
-        enc_key = bytes.fromhex(keys[rel_key]["enc_key"])
+        enc_key = bytes.fromhex(key_info["enc_key"])
         out_path = os.path.join(OUT_DIR, rel)
 
         print(f"解密: {rel} ({sz/1024/1024:.1f}MB) ...", end=" ")

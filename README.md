@@ -1,6 +1,6 @@
-# WeChat 4.0 Database Decryptor
+# WeChat 4.x Database Decryptor
 
-微信 4.0 (Windows) 本地数据库解密工具。从运行中的微信进程内存提取加密密钥，解密所有 SQLCipher 4 加密数据库，并提供实时消息监听。
+微信 4.0 (Windows、MacOS、Linux) 本地数据库解密工具。从运行中的微信进程内存提取加密密钥，解密所有 SQLCipher 4 加密数据库，并提供实时消息监听。
 
 ## 更新日志
 
@@ -21,33 +21,46 @@
 - **页面大小**: 4096 bytes, reserve = 80 (IV 16 + HMAC 64)
 - **每个数据库有独立的 salt 和 enc_key**
 
-WCDB (微信的 SQLCipher 封装) 会在进程内存中缓存派生后的 raw key，格式为 `x'<64hex_enc_key><32hex_salt>'`。本工具通过扫描进程内存中的这种模式，匹配数据库文件的 salt，并通过 HMAC 验证来提取正确的密钥。
+WCDB (微信的 SQLCipher 封装) 会在进程内存中缓存派生后的 raw key，格式为 `x'<64hex_enc_key><32hex_salt>'`。三个平台（Windows / Linux / macOS）均可通过扫描进程内存匹配此模式，再通过 HMAC 校验 page 1 确认密钥正确性。
 
 ## 使用方法
 
 ### 环境要求
 
-- Windows 10/11
 - Python 3.10+
-- 微信 4.0 (正在运行)
-- 需要管理员权限 (读取进程内存)
+- 微信 4.x
+- `pip install pycryptodome`
+
+Windows：
+
+- Windows 10/11
+- 微信正在运行
+- 需要管理员权限（读取进程内存）
+
+Linux：
+
+- 64-bit Linux
+- 需要 root 权限或 `CAP_SYS_PTRACE`（读取 `/proc/<pid>/mem`）
+- `db_dir` 默认类似 `~/Documents/xwechat_files/<wxid>/db_storage`
 
 ### 安装依赖
 
-```bash
-pip install pycryptodome
-```
-
 ### 快速开始
 
-确保微信正在运行，以**管理员权限**执行：
+Windows：
 
 ```bash
-python main.py            # 实时消息监听 (Web UI)
-python main.py decrypt    # 解密全部数据库到 decrypted/
+python main.py
+python main.py decrypt
 ```
 
-程序会自动完成：配置检测 → 密钥提取 → 启动。首次运行会自动检测微信数据目录并生成 `config.json`。
+Linux：
+
+```bash
+python3 main.py decrypt
+```
+
+程序会自动完成：配置检测 → 内存扫描提取密钥 → 解密。首次运行会自动检测微信数据目录并生成 `config.json`。微信只要在运行中即可，无需重启或重新登录。
 
 如果自动检测失败（例如微信安装在非默认位置），手动创建 `config.json`：
 ```json
@@ -59,7 +72,18 @@ python main.py decrypt    # 解密全部数据库到 decrypted/
 }
 ```
 
-`db_dir` 路径可以在 微信设置 → 文件管理 中找到。
+Linux 版 `config.json` 示例：
+
+```json
+{
+    "db_dir": "/home/yourname/Documents/xwechat_files/your_wxid/db_storage",
+    "keys_file": "all_keys.json",
+    "decrypted_dir": "decrypted",
+    "wechat_process": "wechat"
+}
+```
+
+`db_dir` 路径：Windows 可在微信设置 → 文件管理中找到；Linux 默认在 `~/Documents/xwechat_files/<wxid>/db_storage`。
 
 ### Web UI 说明
 
@@ -136,7 +160,9 @@ python find_image_key.py
 |------|------|
 | `main.py` | **一键启动入口** — 自动配置、提取密钥、启动服务 |
 | `config.py` | 配置加载器（自动检测微信数据目录） |
-| `find_all_keys.py` | 从微信进程内存提取所有数据库密钥 |
+| `find_all_keys.py` | 平台分发入口（Windows / Linux） |
+| `find_all_keys_windows.py` | Windows 版内存扫描提 key |
+| `find_all_keys_linux.py` | Linux 版内存扫描提 key |
 | `decrypt_db.py` | 全量解密所有数据库 |
 | `mcp_server.py` | MCP Server，让 Claude AI 查询微信数据 |
 | `monitor_web.py` | 实时消息监听 (Web UI + SSE + 图片预览) |
@@ -178,6 +204,7 @@ V2 文件结构: `[6B signature] [4B aes_size LE] [4B xor_size LE] [1B padding]`
 - 其他: head_image, favorite, sns, emoticon 等
 
 ## macOS 数据库密钥扫描 (WeChat 4.x)
+
 
 macOS 版微信 4.x 使用 SQLCipher 4 加密本地数据库，密钥格式为 `x'<64hex_key><32hex_salt>'`。C 版扫描器通过 Mach VM API 扫描微信进程内存提取密钥。
 
