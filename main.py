@@ -11,6 +11,8 @@ import sys
 import functools
 print = functools.partial(print, flush=True)
 
+from key_utils import strip_key_metadata
+
 
 def check_wechat_running():
     """检查微信是否在运行，返回 True/False"""
@@ -37,6 +39,7 @@ def ensure_keys(keys_file, db_dir):
             print(f"    旧: {saved_dir}")
             print(f"    新: {db_dir}")
             keys = {}
+        keys = strip_key_metadata(keys)
         if keys:
             print(f"[+] 已有 {len(keys)} 个数据库密钥")
             return
@@ -60,7 +63,7 @@ def ensure_keys(keys_file, db_dir):
             keys = json.load(f)
     except (json.JSONDecodeError, ValueError):
         keys = {}
-    if not keys:
+    if not strip_key_metadata(keys):
         print("[!] 未能提取到任何密钥")
         print("    可能原因：选择了错误的微信数据目录，或微信需要重启")
         print("    请检查 config.json 中的 db_dir 是否与当前登录的微信账号匹配")
@@ -79,7 +82,7 @@ def main():
 
     # 2. 检查微信进程
     if not check_wechat_running():
-        print("[!] 未检测到微信进程 (Weixin.exe)")
+        print(f"[!] 未检测到微信进程 ({cfg.get('wechat_process', 'WeChat')})")
         print("    请先启动微信并登录，然后重新运行")
         sys.exit(1)
     print("[+] 微信进程运行中")
