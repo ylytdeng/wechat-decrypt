@@ -116,7 +116,15 @@ def _auto_detect_db_dir_linux():
     # sudo 运行时，~ 展开为 /root；回退到实际用户的 home
     sudo_user = os.environ.get("SUDO_USER")
     if sudo_user:
-        sudo_home = os.path.expanduser(f"~{sudo_user}")
+        # 验证 SUDO_USER 是合法系统用户，防止路径注入
+        import pwd
+        try:
+            pw = pwd.getpwnam(sudo_user)
+            sudo_home = pw.pw_dir
+        except KeyError:
+            sudo_home = None
+        if not sudo_home:
+            sudo_home = os.path.expanduser(f"~{sudo_user}")
         fallback = os.path.join(sudo_home, "Documents", "xwechat_files")
         if fallback not in search_roots:
             search_roots.append(fallback)

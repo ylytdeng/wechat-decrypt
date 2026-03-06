@@ -28,7 +28,7 @@ def _safe_readlink(path):
         return ""
 
 
-_INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "perl", "ruby"}
+_INTERPRETER_PREFIXES = ("python", "bash", "sh", "zsh", "node", "perl", "ruby")
 
 
 def _is_wechat_process(pid):
@@ -44,8 +44,8 @@ def _is_wechat_process(pid):
             comm = f.read().strip()
         exe_path = _safe_readlink(f"/proc/{pid}/exe")
         exe_name = os.path.basename(exe_path)
-        # 排除脚本解释器进程（避免匹配 python3 wechat-decrypt 等）
-        if exe_name.lower() in _INTERPRETERS:
+        # 排除脚本解释器进程（避免匹配 python3.11 wechat-decrypt 等）
+        if any(exe_name.lower().startswith(p) for p in _INTERPRETER_PREFIXES):
             return False
         haystack = f"{comm} {exe_name}".lower()
         return "wechat" in haystack or "weixin" in haystack
