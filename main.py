@@ -28,7 +28,7 @@ def ensure_keys(keys_file, db_dir):
     """确保密钥文件存在且匹配当前 db_dir，否则重新提取"""
     if os.path.exists(keys_file):
         try:
-            with open(keys_file) as f:
+            with open(keys_file, "r", encoding="utf-8") as f:
                 keys = json.load(f)
         except (json.JSONDecodeError, ValueError):
             keys = {}
@@ -59,7 +59,7 @@ def ensure_keys(keys_file, db_dir):
         print("[!] 密钥提取失败")
         sys.exit(1)
     try:
-        with open(keys_file) as f:
+        with open(keys_file, "r", encoding="utf-8") as f:
             keys = json.load(f)
     except (json.JSONDecodeError, ValueError):
         keys = {}

@@ -169,7 +169,7 @@ def load_config():
     cfg = {}
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE) as f:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
         except json.JSONDecodeError:
             print(f"[!] {CONFIG_FILE} 格式损坏，将使用默认配置")
@@ -181,12 +181,12 @@ def load_config():
         if detected:
             print(f"[+] 自动检测到微信数据目录: {detected}")
             cfg = {**_DEFAULT, **cfg, "db_dir": detected}
-            with open(CONFIG_FILE, "w") as f:
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, indent=4, ensure_ascii=False)
             print(f"[+] 已保存到: {CONFIG_FILE}")
         else:
             if not os.path.exists(CONFIG_FILE):
-                with open(CONFIG_FILE, "w") as f:
+                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                     json.dump(_DEFAULT, f, indent=4, ensure_ascii=False)
             print(f"[!] 未能自动检测微信数据目录")
             print(f"    请手动编辑 {CONFIG_FILE} 中的 db_dir 字段")

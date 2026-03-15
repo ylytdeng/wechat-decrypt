@@ -1883,7 +1883,7 @@ def main():
     print("  微信实时监听 (WAL增量 + SSE推送)", flush=True)
     print("=" * 60, flush=True)
 
-    with open(KEYS_FILE) as f:
+    with open(KEYS_FILE, "r", encoding="utf-8") as f:
         keys = strip_key_metadata(json.load(f))
 
     session_key_info = get_key_info(keys, os.path.join("session", "session.db"))

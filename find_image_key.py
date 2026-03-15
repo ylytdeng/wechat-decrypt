@@ -334,7 +334,7 @@ def verify_and_decrypt(attach_dir, aes_key_str, xor_key):
 
 def main():
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
-    with open(config_path) as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
     db_dir = config['db_dir']
@@ -392,7 +392,7 @@ def main():
         config['image_aes_key'] = aes_key
         if xor_key is not None:
             config['image_xor_key'] = xor_key
-        with open(config_path, 'w') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         print(f"Saved to {config_path}", flush=True)
 

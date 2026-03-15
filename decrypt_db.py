@@ -116,7 +116,7 @@ def main():
         print("请先运行 find_all_keys.py")
         sys.exit(1)
 
-    with open(KEYS_FILE) as f:
+    with open(KEYS_FILE, "r", encoding="utf-8") as f:
         keys = json.load(f)
 
     keys = strip_key_metadata(keys)

@@ -15,7 +15,7 @@ DB_DIR = _cfg["db_dir"]
 KEYS_FILE = _cfg["keys_file"]
 DECRYPTED = os.path.join(_cfg["decrypted_dir"], "session", "session.db")
 
-with open(KEYS_FILE) as f:
+with open(KEYS_FILE, "r", encoding="utf-8") as f:
     keys = json.load(f)
 enc_key = bytes.fromhex(keys["session/session.db"]["enc_key"])
 

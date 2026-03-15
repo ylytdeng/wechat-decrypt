@@ -29,7 +29,7 @@ WAL_FRAME_HEADER_SZ = 24
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
 
-with open(CONFIG_FILE) as f:
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     _cfg = json.load(f)
 for _key in ("keys_file", "decrypted_dir"):
     if _key in _cfg and not os.path.isabs(_cfg[_key]):
@@ -52,7 +52,7 @@ if not DECODED_IMAGE_DIR:
 elif not os.path.isabs(DECODED_IMAGE_DIR):
     DECODED_IMAGE_DIR = os.path.join(SCRIPT_DIR, DECODED_IMAGE_DIR)
 
-with open(KEYS_FILE) as f:
+with open(KEYS_FILE, "r", encoding="utf-8") as f:
     ALL_KEYS = strip_key_metadata(json.load(f))
 
 # ============ 解密函数 ============
@@ -143,7 +143,7 @@ class DBCache:
         if not os.path.exists(self.MTIME_FILE):
             return
         try:
-            with open(self.MTIME_FILE) as f:
+            with open(self.MTIME_FILE, "r", encoding="utf-8") as f:
                 saved = json.load(f)
         except (json.JSONDecodeError, OSError):
             return
@@ -172,7 +172,7 @@ class DBCache:
         for rel_key, (db_mt, wal_mt, path) in self._cache.items():
             data[rel_key] = {"db_mt": db_mt, "wal_mt": wal_mt, "path": path}
         try:
-            with open(self.MTIME_FILE, 'w') as f:
+            with open(self.MTIME_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f)
         except OSError:
             pass
