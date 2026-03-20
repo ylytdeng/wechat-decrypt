@@ -7,7 +7,7 @@ python main.py decrypt  # 提取密钥 + 解密全部数据库
 import json
 import os
 import sys
-from wsl_utils import isRunningOnWsl, convertWindowsPath2Wsl
+from wsl_utils import is_running_on_wsl, convert_windows_path_to_wsl
 
 import functools
 print = functools.partial(print, flush=True)
@@ -36,8 +36,8 @@ def ensure_keys(keys_file, db_dir):
         # 检查密钥是否匹配当前 db_dir（防止切换账号后误复用旧密钥）
         saved_dir = keys.pop("_db_dir", None)
 
-        if isRunningOnWsl():
-            saved_dir = convertWindowsPath2Wsl(saved_dir)
+        if is_running_on_wsl():
+            saved_dir = convert_windows_path_to_wsl(saved_dir)
 
         if saved_dir and os.path.normcase(os.path.normpath(saved_dir)) != os.path.normcase(os.path.normpath(db_dir)):
             print(f"[!] 密钥文件对应的目录已变更，需要重新提取")

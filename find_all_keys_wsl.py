@@ -6,6 +6,7 @@
 import subprocess
 import os
 import ast
+import json
 
 
 BASEPATH = os.path.dirname(os.path.abspath(__file__))
@@ -17,25 +18,32 @@ except subprocess.CalledProcessError as e:
 
 
 def get_pids():
-    callWindowsScriptCommand = f"""
+    result_flag = "#RESULT: "
+    call_windows_script_command = f"""
 import sys
-sys.path.append(r'{WINDOWS_DIR}')
+sys.path.append({json.dumps(WINDOWS_DIR)})
 from find_all_keys_windows import get_pids
 
 res = get_pids()
-print(res)
+print('{result_flag}' + str(res))
 """
-    result = subprocess.run(["python.exe", "-c", callWindowsScriptCommand], capture_output=True, text=True)
+    result = subprocess.run(["python.exe", "-c", call_windows_script_command], capture_output=True, text=True)
     
     if result.returncode != 0:
-        raise Exception("Error while getting the pids on windows")
+        raise Exception(f"Error while getting the pids on windows: {result.stderr}")
     try:
-        resString = result.stdout.strip().split("\n")[-1]
-        return ast.literal_eval(resString)
+        output_lines = result.stdout.strip().split("\n")
+        result_line = next((line for line in output_lines if line.startswith(result_flag)), None)
+        if result_line is None:
+            raise ValueError
+        result_string = result_line[len(result_flag):].strip()
+        return ast.literal_eval(result_string)
     except (SyntaxError, ValueError, IndexError) as e:
         raise Exception(f"Error while parsing windows output: {e}\nRaw output: {result.stdout}")
         
 
 def main():
     windows_full_path = rf"{WINDOWS_DIR}\find_all_keys_windows.py"
-    subprocess.run(["python.exe", windows_full_path])
+    result = subprocess.run(["python.exe", windows_full_path])
+    if result.returncode != 0:
+        raise Exception("error during key extraction on windows")

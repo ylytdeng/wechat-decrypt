@@ -1,7 +1,7 @@
 import functools
 import platform
 import sys
-from wsl_utils import isRunningOnWsl
+from wsl_utils import is_running_on_wsl
 
 
 @functools.lru_cache(maxsize=1)
@@ -10,7 +10,7 @@ def _load_impl():
     if system == "windows":
         import find_all_keys_windows as impl
         return impl
-    if isRunningOnWsl():
+    if is_running_on_wsl():
         import find_all_keys_wsl as impl
         return impl
     if system == "linux":
