@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import sys
+from wsl_utils import is_running_on_wsl, convert_windows_path_to_wsl
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
@@ -197,6 +198,11 @@ def load_config():
             sys.exit(1)
     else:
         cfg = {**_DEFAULT, **cfg}
+
+    # converting windows path if we are running in wsl
+    if is_running_on_wsl():
+        for key in ("db_dir", "keys_file", "decrypted_dir", "decoded_image_dir"):
+            cfg[key] = convert_windows_path_to_wsl(cfg[key])
 
     # 将相对路径转为绝对路径
     base = os.path.dirname(os.path.abspath(__file__))
