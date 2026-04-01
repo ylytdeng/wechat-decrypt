@@ -38,6 +38,7 @@ Windows：
 - Windows 10/11
 - 微信正在运行
 - 需要管理员权限（读取进程内存）
+- 如果你使用 WSL 运行 main.py，请确保 Windows 和 WSL 中都已安装 Python，并配置好相应的依赖库。
 
 Linux：
 
@@ -85,7 +86,7 @@ python3 main.py decrypt
     "wechat_process": "Weixin.exe"
 }
 ```
-
+如果您使用 WSL (Windows 子系统) 运行该脚本，请确保按照上述示例使用 Windows 文件格式。
 Linux 版 `config.json` 示例：
 
 ```json
