@@ -10,6 +10,18 @@ import sys
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
+# 打包后 __file__ 指向临时目录，优先使用环境变量或5 cwd
+def _app_base_dir():
+    d = os.environ.get("WECHAT_DECRYPT_APP_DIR")
+    if d and os.path.isdir(d):
+        return d
+    return os.path.dirname(os.path.abspath(__file__))
+def _config_file_path():
+    base = _app_base_dir()
+    p = os.path.join(base, "config.json")
+    if os.path.exists(p):
+        return p
+    return CONFIG_FILE
 _SYSTEM = platform.system().lower()
 
 if _SYSTEM == "linux":
@@ -167,12 +179,13 @@ def auto_detect_db_dir():
 
 def load_config():
     cfg = {}
-    if os.path.exists(CONFIG_FILE):
+    config_file = _config_file_path()
+    if os.path.exists(config_file):
         try:
-            with open(CONFIG_FILE, encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 cfg = json.load(f)
         except json.JSONDecodeError:
-            print(f"[!] {CONFIG_FILE} 格式损坏，将使用默认配置")
+            print(f"[!] {config_file} 格式损坏，将使用默认配置")
             cfg = {}
     # db_dir 缺失或仍为模板值时，尝试自动检测
     db_dir = cfg.get("db_dir", "")
@@ -181,15 +194,15 @@ def load_config():
         if detected:
             print(f"[+] 自动检测到微信数据目录: {detected}")
             cfg = {**_DEFAULT, **cfg, "db_dir": detected}
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, indent=4, ensure_ascii=False)
-            print(f"[+] 已保存到: {CONFIG_FILE}")
+            print(f"[+] 已保存到: {config_file}")
         else:
-            if not os.path.exists(CONFIG_FILE):
-                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            if not os.path.exists(config_file):
+                with open(config_file, "w", encoding="utf-8") as f:
                     json.dump(_DEFAULT, f, indent=4, ensure_ascii=False)
             print(f"[!] 未能自动检测微信数据目录")
-            print(f"    请手动编辑 {CONFIG_FILE} 中的 db_dir 字段")
+            print(f"    请手动编辑 {config_file} 中的 db_dir 字段")
             if _SYSTEM == "linux":
                 print("    Linux 默认路径类似: ~/Documents/xwechat_files/<wxid>/db_storage")
             else:
@@ -199,7 +212,7 @@ def load_config():
         cfg = {**_DEFAULT, **cfg}
 
     # 将相对路径转为绝对路径
-    base = os.path.dirname(os.path.abspath(__file__))
+    base = _app_base_dir()
     for key in ("keys_file", "decrypted_dir", "decoded_image_dir"):
         if key in cfg and not os.path.isabs(cfg[key]):
             cfg[key] = os.path.join(base, cfg[key])

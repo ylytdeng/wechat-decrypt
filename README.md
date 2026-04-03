@@ -175,6 +175,10 @@ python find_image_key.py
 | 文件 | 说明 |
 |------|------|
 | `main.py` | **一键启动入口** — 自动配置、提取密钥、启动服务 |
+| `app_gui.py` | **GUI 工具箱** — tkinter 界面，整合解密/导出/音频转换 |
+| `export_messages.py` | 聊天记录导出（CSV / HTML / JSON） |
+| `voice_to_mp3.py` | 语音消息 SILK 转 MP3 |
+| `build.bat` | 一键打包为单 exe（PyInstaller） |
 | `config.py` | 配置加载器（自动检测微信数据目录） |
 | `find_all_keys.py` | 平台分发入口（Windows / Linux） |
 | `find_all_keys_windows.py` | Windows 版内存扫描提 key |
@@ -190,6 +194,33 @@ python find_image_key.py
 | `find_all_keys_macos.c` | macOS 版内存密钥扫描器 (C, Mach VM API) |
 
 ## 技术细节
+
+### GUI 工具箱 & 单 exe 打包
+
+提供 tkinter 图形界面 (`app_gui.py`)，集成三个核心功能：
+
+1. **解密数据库** — 调用 `main.py decrypt`
+2. **导出消息** — 调用 `export_messages.py`，输出 CSV / HTML / JSON
+3. **转换音频** — 调用 `voice_to_mp3.py`，SILK_V3 → MP3
+
+#### 直接运行
+
+```bash
+python app_gui.py
+```
+
+#### 打包为单 exe
+
+```bash
+pip install pyinstaller
+build.bat
+```
+
+输出 `dist\WeChatDecrypt.exe`（约 18MB），双击即可使用，无需安装 Python。
+
+> 转换音频需要系统安装 [FFmpeg](https://ffmpeg.org/download.html) 并加入 PATH。
+
+详细说明见 [EXE_USAGE.md](EXE_USAGE.md)。
 
 ### WAL 处理
 
